@@ -14,3 +14,5 @@ ESHH = 40
 FHCM = 28
 #SecondHalfClearMinute
 SHCM = 58
+#MinimalOutBallance:
+MOB = 0.004

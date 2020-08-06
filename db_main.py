@@ -40,6 +40,14 @@ class UserBet(BaseModel):
     class Meta:
         table_name = 'user_bet'
 
+class OutBallance(BaseModel):
+    tg_id = IntegerField()
+    wallet_addr = TextField(default='')
+    out_summ = FloatField(default=0)
+
+    class Meta:
+        table_name = 'out_ballance'
+
 def db_connect():
     db.connect(reuse_if_open=True)
     return
@@ -53,7 +61,7 @@ def init_tables():
     #with db:
     #my_file = Path(database_name)
     #if (not my_file.is_file()):
-    db.create_tables([UserWallet, UserBallance, UserBet])
+    db.create_tables([UserWallet, UserBallance, UserBet, OutBallance])
     return
 
 # проверить, существует ли юзер
@@ -176,4 +184,33 @@ def get_user_ballance(tg_id, return_object = True):
         return uw
     else:
         return {'balance': uw.balance, 'tg_id': uw.tg_id}
+
+#
+def out_exists(tg_id):
+    query = OutBallance.select().where(OutBallance.wallet_addr == tg_id)
     
+    if query.exists():
+        return True
+    else:
+        return False
+#
+def create_out(new_out):
+    OutBallance.create(
+        tg_id=newbet['tg_id'], 
+        wallet_addr=newbet['wallet_addr'], 
+        out_summ=newbet['out_summ']
+    )
+    return True
+#
+def get_out(tg_id):
+    out_ball = OutBallance.select().where(OutBallance.tg_id == tg_id).get()
+    return out_ball
+#
+def update_out(tg_id, upd_c):
+    if(not out_exists(tg_id)):
+        create_out({'tg_id':tg_id, 'wallet_addr':'', 'out_summ':0})
+    out_ball = OutBallance.select().where(OutBallance.tg_id == tg_id).get()
+    for key in upd_c:
+        value = upd_c[key]
+        setattr(out_ball, key, value)
+    out_ball.save()

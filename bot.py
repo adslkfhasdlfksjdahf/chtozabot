@@ -13,7 +13,7 @@ from db_main import *
 import requests
 import json
 from telebot import types
-from config import token, database_name, SFHH, EFHH, SSHH, ESHH, FHCM, SHCM
+from config import token, database_name, SFHH, EFHH, SSHH, ESHH, FHCM, SHCM, MOB
 from secrets import token_bytes
 from coincurve import PublicKey
 from sha3 import keccak_256
@@ -303,7 +303,35 @@ def outstavkaa(message):
             bot.send_message(message.from_user.id, f"Вы сделали ставку Выше на сумму {txtvopr} ETH", reply_markup=menu_keyboard)
             bot.register_next_step_handler(message, menu)
 
+@bot.message_handler(content_types=['text'])
+def inputoutsumm():
+    if message.text == "🔙 Назад":
+        bot.send_message(message.from_user.id, "Отмена", reply_markup=menu_keyboard)
+        bot.register_next_step_handler(message, menu)
+    else:
+        user_id = message.from_user.id
+        print(user_id)
+        txtvopr = float(message.text)
+        print(txtvopr)
+        
+        update_out(user_id, {'out_summ': txtvopr})
+        bot.send_message(message.from_user.id, f"Вы хотите вывести {txtvopr} ETH\nВведите адрес кошелька для вывода", reply_markup=menu_keyboard)
+        bot.register_next_step_handler(message, inputoutaddr)
 
+def inputoutaddr():
+    if message.text == "🔙 Назад":
+        bot.send_message(message.from_user.id, "Отмена", reply_markup=menu_keyboard)
+        bot.register_next_step_handler(message, menu)
+    else:
+        user_id = message.from_user.id
+        print(user_id)
+        txtvopr = message.text
+        print(txtvopr)
+        
+        update_out(user_id, {'wallet_addr': txtvopr})
+        bot.send_message(message.from_user.id, f"Адрес для вывода: {txtvopr} ETH\nОжидайте вывода!", reply_markup=menu_keyboard)
+        bot.register_next_step_handler(message, menu)
+        
 @bot.callback_query_handler(func=lambda call: True)
 def callback_processing(call):
     global walletn
@@ -357,7 +385,14 @@ def callback_processing(call):
         message = bot.send_message(call.from_user.id, f"Какую сумму ты хочешь поставить на понижение?",
                                    reply_markup=back_keyboard)
         bot.register_next_step_handler(message, outstavkaa)
-
+    if call.data == "out-money":
+        user = get_user(call.from_user.id)
+        if(user.balance <= MOB):
+            bot.send_message(call.from_user.id, f"Не достаточно денег на балансе. Минимальная сумма для вывода {MOB}", reply_markup=back_keyboard)
+        else:
+            message = bot.send_message(call.from_user.id, f"Какую сумму ты хочешь вывести?",
+                                       reply_markup=back_keyboard)
+            bot.register_next_step_handler(message, inputoutsumm)        
     if call.data == "in-money":
         # check if user exsist or not
         if(not user_exists(call.from_user.id)):
@@ -419,9 +454,9 @@ def callback_processing(call):
         print(textvopr)
         bot.send_message(call.from_user.id,
                          "🚀 Тут ты можешь посмотреть информацию о розыгрышах, в которых ты принимаешь участие прямо сейчас\n\nНа данный момент ты не принимаешь участие ни в одном розыгрыше")
-    elif call.data == "out-money":
-        message = bot.send_message(call.from_user.id, "Напиши адрес внешнего ETH кошелька")
-        bot.register_next_step_handler(message, outoutmoney)
+    #elif call.data == "out-money":
+    #    message = bot.send_message(call.from_user.id, "Напиши адрес внешнего ETH кошелька")
+    #    bot.register_next_step_handler(message, outoutmoney)
 
 
 @bot.message_handler(content_types=['text'])
