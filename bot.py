@@ -308,15 +308,23 @@ def inputoutsumm():
     if message.text == "🔙 Назад":
         bot.send_message(message.from_user.id, "Отмена", reply_markup=menu_keyboard)
         bot.register_next_step_handler(message, menu)
+
     else:
         user_id = message.from_user.id
         print(user_id)
         txtvopr = float(message.text)
         print(txtvopr)
         
-        update_out(user_id, {'out_summ': txtvopr})
-        bot.send_message(message.from_user.id, f"Вы хотите вывести {txtvopr} ETH\nВведите адрес кошелька для вывода", reply_markup=menu_keyboard)
-        bot.register_next_step_handler(message, inputoutaddr)
+        bal_ = get_user_ballance(user_id).balance
+        if txtvopr>bal_:
+            bot.send_message(message.from_user.id, f"У вас недостаточно денег для вывода! На вашем кошельке {bal_} ETH, а вы запрашиваете {txtvopr} ETH", reply_markup=menu_keyboard)
+            bot.register_next_step_handler(message, menu)
+        else:
+            newb_ = bal_ - txtvopr
+            update_user_ballance(user_id, {'balance':newb_})
+            update_out(user_id, {'out_summ': txtvopr})
+            bot.send_message(message.from_user.id, f"Вы хотите вывести {txtvopr} ETH\nВведите адрес кошелька для вывода", reply_markup=menu_keyboard)
+            bot.register_next_step_handler(message, inputoutaddr)
 
 @bot.message_handler(content_types=['text'])
 def inputoutaddr():
@@ -388,7 +396,7 @@ def callback_processing(call):
         bot.register_next_step_handler(message, outstavkaa)
     if call.data == "out-money":
         user = get_user(call.from_user.id)
-        if(user.balance <= MOB):
+        if(get_user_ballance(call.from_user.id).balance <= MOB):
             bot.send_message(call.from_user.id, f"Не достаточно денег на балансе. Минимальная сумма для вывода {MOB}", reply_markup=back_keyboard)
         else:
             message = bot.send_message(call.from_user.id, f"Какую сумму ты хочешь вывести?",
