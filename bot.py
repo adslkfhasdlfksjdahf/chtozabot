@@ -318,6 +318,7 @@ def inputoutsumm():
         bot.send_message(message.from_user.id, f"Вы хотите вывести {txtvopr} ETH\nВведите адрес кошелька для вывода", reply_markup=menu_keyboard)
         bot.register_next_step_handler(message, inputoutaddr)
 
+@bot.message_handler(content_types=['text'])
 def inputoutaddr():
     if message.text == "🔙 Назад":
         bot.send_message(message.from_user.id, "Отмена", reply_markup=menu_keyboard)
