@@ -215,7 +215,7 @@ def menu(message):
         bal_ = 0
         if(user_exists(message.from_user.id)):
             bal_ = get_user(message.from_user.id).balance
-        bot.send_message(message.from_user.id, f"ETH кошелек тут должен выводиться баланс, который равен {bal_}", reply_markup=balance, disable_web_page_preview=True)
+        bot.send_message(message.from_user.id, f"ETH кошелек баланс равен {bal_}", reply_markup=balance, disable_web_page_preview=True)
         bot.register_next_step_handler(message, menu)
 
     if message.text == "🎲 Betting":
