@@ -13,7 +13,7 @@ from db_main import *
 import requests
 import json
 from telebot import types
-from config import token, database_name, SFHH, EFHH, SSHH, ESHH, FHCM, SHCM, MOB
+from config import token, botlink, database_name, SFHH, EFHH, SSHH, ESHH, FHCM, SHCM, MOB
 from secrets import token_bytes
 from coincurve import PublicKey
 from sha3 import keccak_256
@@ -50,6 +50,10 @@ results = manager.Queue()
 pool = multiprocessing.Pool(processes=3)
 processes = []
 
+def extract_uid(text):
+    # get the user tg_id
+    return text.split()[1] if len(text.split()) > 1 else None
+
 def is_first_half_hour():
     mint = datetime.now().minute
     if(mint>=SFHH and mint<=EFHH):
@@ -57,6 +61,19 @@ def is_first_half_hour():
     elif(mint>=SSHH and mint<=ESHH):
         return False
 
+def percentage(percent, whole):
+  return (percent * whole) / 100.0
+
+def check_ref_system(summ, tg_id):
+    usr = get_user(tg_id)
+    if usr.ref_tg_id == 0:
+        return summ
+    else:
+        mine = percentage(90, summ)
+        their = percentage(10, summ)
+        their = their + get_user_ballance(usr.ref_tg_id).balance
+        update_user_ballance(usr.ref_tg_id, {'balance': their})
+        return mine
 
 def background():  # фоновый def для парсинга курса eth в usd
     global pricestart
@@ -199,10 +216,15 @@ def send_welcome(message):
         addr = addr.hex()
         print('private_key:', private_key.hex())
         print('eth addr:', '0x' + addr)
-
-        # create new user with wallet
-        newuserdata = {'balance': 0, 'tg_id': user_id, 'wallet_addr': '0x' + str(addr),
-                       'wallet_key': '' + str(private_key.hex())}
+        unique_code = extract_uid(message.text)
+        if unique_code:
+            # create new user with wallet
+            newuserdata = {'balance': 0, 'tg_id': user_id, 'wallet_addr': '0x' + str(addr),
+                           'wallet_key': '' + str(private_key.hex()), 'ref_tg_id': int(unique_code)}        
+        else:
+            # create new user with wallet
+            newuserdata = {'balance': 0, 'tg_id': user_id, 'wallet_addr': '0x' + str(addr),
+                           'wallet_key': '' + str(private_key.hex()), 'ref_tg_id': 0}
         add_new_user(newuserdata)
     
     bot.send_message(message.chat.id, "Это тотализатор BetEther для p2p ставок на курс Ethereum \n\nℹ️ Подробнее о том, как играть: \nhttps://graph.org/Instrukciya-kak-stavit-08-02", reply_markup=menu_keyboard, disable_web_page_preview=True)
@@ -215,7 +237,8 @@ def menu(message):
         bal_ = 0
         if(user_exists(message.from_user.id)):
             bal_ = get_user(message.from_user.id).balance
-        bot.send_message(message.from_user.id, f"ETH кошелек баланс равен {bal_}", reply_markup=balance, disable_web_page_preview=True)
+            bal2_ = get_user_ballance(message.from_user.id).balance
+        bot.send_message(message.from_user.id, f"ETH кошелек баланс равен {bal2_}", reply_markup=balance, disable_web_page_preview=True)
         bot.register_next_step_handler(message, menu)
 
     if message.text == "🎲 Betting":
@@ -228,7 +251,9 @@ def menu(message):
         bot.send_message(message.from_user.id, "Это тотализатор Bitoto для p2p ставок на курс Bitcoin\n\nℹ️ Подробнее о том, как играть в тотализатор: bitoto.io/instruction\n\nСайт проекта: bitoto.io", reply_markup=servese, disable_web_page_preview=True)
         bot.register_next_step_handler(message, menu)
     if message.text == "🤝 Партнёрам":
-        bot.send_message(message.from_user.id, "💵 Партнерская программа 🤝\n\nПриглашай новых пользователей в двухуровневую реферальную программу и получай пассивный доход от комиссий тотализатора! 💵\n\n🔥 Зарабатывай до 7% от суммы выигрыша твоих рефералов!!!\n\n1 уровень: 5%\n2 уровень: 2%\n\n📌 Пример: Ты пригласил партнера, который выиграл 1 ETH, ты получишь выплату в  0.05 ETH Если твой партнер пригласит еще партнеров, то с каждого из них - ты будешь получать еще 2%\n\nВыходит, что если твой партнер и его партнер выиграют каждый по 1 ETH, то ты получишь - 0.07 ETH на свой баланс.", disable_web_page_preview=True)
+        uid=message.from_user.id
+        reflink = "\n\nВот твоя ссылка:\n" + botlink + f"?start={uid}"
+        bot.send_message(message.from_user.id, "💵 Партнерская программа 🤝\n\nПриглашай новых пользователей в двухуровневую реферальную программу и получай пассивный доход от комиссий тотализатора! 💵\n\n🔥 Зарабатывай до 7% от суммы выигрыша твоих рефералов!!!\n\n1 уровень: 5%\n2 уровень: 2%\n\n📌 Пример: Ты пригласил партнера, который выиграл 1 ETH, ты получишь выплату в  0.05 ETH Если твой партнер пригласит еще партнеров, то с каждого из них - ты будешь получать еще 2%\n\nВыходит, что если твой партнер и его партнер выиграют каждый по 1 ETH, то ты получишь - 0.07 ETH на свой баланс."+reflink, disable_web_page_preview=True)
         bot.register_next_step_handler(message, menu)
 
 
@@ -304,7 +329,7 @@ def outstavkaa(message):
             bot.register_next_step_handler(message, menu)
 
 @bot.message_handler(content_types=['text'])
-def inputoutsumm():
+def inputoutsumm(message):
     if message.text == "🔙 Назад":
         bot.send_message(message.from_user.id, "Отмена", reply_markup=menu_keyboard)
         bot.register_next_step_handler(message, menu)
@@ -316,7 +341,7 @@ def inputoutsumm():
         print(txtvopr)
         
         bal_ = get_user_ballance(user_id).balance
-        if txtvopr>bal_:
+        if txtvopr > bal_:
             bot.send_message(message.from_user.id, f"У вас недостаточно денег для вывода! На вашем кошельке {bal_} ETH, а вы запрашиваете {txtvopr} ETH", reply_markup=menu_keyboard)
             bot.register_next_step_handler(message, menu)
         else:
@@ -327,7 +352,7 @@ def inputoutsumm():
             bot.register_next_step_handler(message, inputoutaddr)
 
 @bot.message_handler(content_types=['text'])
-def inputoutaddr():
+def inputoutaddr(message):
     if message.text == "🔙 Назад":
         bot.send_message(message.from_user.id, "Отмена", reply_markup=menu_keyboard)
         bot.register_next_step_handler(message, menu)
@@ -339,8 +364,13 @@ def inputoutaddr():
         
         update_out(user_id, {'wallet_addr': txtvopr})
         bot.send_message(message.from_user.id, f"Адрес для вывода: {txtvopr} ETH\nОжидайте вывода!", reply_markup=menu_keyboard)
-        bot.register_next_step_handler(message, menu)
-        
+        bot.register_next_step_handler(message, outoutmoney)
+
+@bot.message_handler(content_types=['text'])
+def outoutmoney(message):
+    message = bot.send_message(message.from_user.id, "Ожидайте перевода", reply_markup=menu_keyboard)
+    bot.register_next_step_handler(message, menu)
+
 @bot.callback_query_handler(func=lambda call: True)
 def callback_processing(call):
     global walletn
@@ -356,12 +386,12 @@ def callback_processing(call):
         response = requests.get(f"https://api.etherscan.io/api?module=account&action=balance&address={addr}&tag=latest&apikey={EthToken}")
         balnowwal = int(response.json()["result"]) / 1000000000000000000
         #берет нынешний баланс адреса эфириум
-
+        
         usr = get_user(call.from_user.id, False)
         baloldwal = usr['balance']
         #берет старый баланс адреса из бд user_wallet
 
-        razbal = balnowwal - baloldwal
+        razbal = check_ref_system(balnowwal - baloldwal, telegram_user_id)
         #находит разницу балансов(новго от старого)
 
         wallet = get_user_ballance(call.from_user.id, False)
@@ -373,7 +403,7 @@ def callback_processing(call):
 
         update_user(call.from_user.id, {'balance': balnowwal})
         #записывает нынешний баланс адреса в бд user_wallet
-
+        
         update_user_ballance(telegram_user_id, {'balance': newbalhum})
         #записывает новый баланс юзера в бд user_ballance
 
@@ -394,14 +424,17 @@ def callback_processing(call):
         message = bot.send_message(call.from_user.id, f"Какую сумму ты хочешь поставить на понижение?",
                                    reply_markup=back_keyboard)
         bot.register_next_step_handler(message, outstavkaa)
+
     if call.data == "out-money":
         user = get_user(call.from_user.id)
         if(get_user_ballance(call.from_user.id).balance <= MOB):
-            bot.send_message(call.from_user.id, f"Не достаточно денег на балансе. Минимальная сумма для вывода {MOB}", reply_markup=back_keyboard)
+            message = bot.send_message(call.from_user.id, f"Не достаточно денег на балансе. Минимальная сумма для вывода {MOB}", reply_markup=back_keyboard)
+            bot.register_next_step_handler(message, menu)
+        
         else:
-            message = bot.send_message(call.from_user.id, f"Какую сумму ты хочешь вывести?",
-                                       reply_markup=back_keyboard)
-            bot.register_next_step_handler(message, inputoutsumm)        
+            message = bot.send_message(call.from_user.id, f"Какую сумму ты хочешь вывести?", reply_markup=back_keyboard)
+            bot.register_next_step_handler(message, inputoutsumm)
+            
     if call.data == "in-money":
         # check if user exsist or not
         if(not user_exists(call.from_user.id)):
@@ -466,12 +499,6 @@ def callback_processing(call):
     #elif call.data == "out-money":
     #    message = bot.send_message(call.from_user.id, "Напиши адрес внешнего ETH кошелька")
     #    bot.register_next_step_handler(message, outoutmoney)
-
-
-@bot.message_handler(content_types=['text'])
-def outoutmoney(message):
-    message = bot.send_message(message.from_user.id, "Ожидайте перевода", reply_markup=menu_keyboard)
-    bot.register_next_step_handler(message, menu)
 
 
 
