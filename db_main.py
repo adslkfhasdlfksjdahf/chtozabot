@@ -15,6 +15,7 @@ class BaseModel(Model):
 
 class UserWallet(BaseModel):
     tg_id = IntegerField()
+    ref_tg_id = IntegerField(default=0)
     balance = FloatField(default=0)
     wallet_addr = TextField(default='')
     wallet_key = TextField(default='')
@@ -88,7 +89,8 @@ def update_user(tg_id, upd_c):
 def add_new_user(newuser):
     UserWallet.create(
         balance=newuser['balance'], 
-        tg_id=newuser['tg_id'], 
+        tg_id=newuser['tg_id'],
+        ref_tg_id=newuser['ref_tg_id'],
         wallet_addr=str(newuser['wallet_addr']), 
         wallet_key=str(newuser['wallet_key'])
     )
@@ -196,9 +198,9 @@ def out_exists(tg_id):
 #
 def create_out(new_out):
     OutBallance.create(
-        tg_id=newbet['tg_id'], 
-        wallet_addr=newbet['wallet_addr'], 
-        out_summ=newbet['out_summ']
+        tg_id=new_out['tg_id'], 
+        wallet_addr=new_out['wallet_addr'], 
+        out_summ=new_out['out_summ']
     )
     return True
 #
@@ -207,7 +209,7 @@ def get_out(tg_id):
     return out_ball
 #
 def update_out(tg_id, upd_c):
-    if(not out_exists(tg_id)):
+    if(out_exists(tg_id)==False):
         create_out({'tg_id':tg_id, 'wallet_addr':'', 'out_summ':0})
     out_ball = OutBallance.select().where(OutBallance.tg_id == tg_id).get()
     for key in upd_c:
