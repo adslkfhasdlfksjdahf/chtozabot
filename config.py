@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-#token = '1113983301:AAHTBUSgEKTyJpJTeAj875VYCQ24HKosoBQ'  # Токен бота
-token = '1309383641:AAES369L7OsJ--08uGSZO4CtjTcF8Yywr7M'
+token = '0000000000:AaEn9qUz_n40UnxN6ZWGBfSmmme8WhxsZW4' # Токен бота
+botlink = 'http://t.me/link_to_bot'
 database_name = 'prices.db'  # Файл с базой данных
 #StartFirstHalfHour
 SFHH = 0
